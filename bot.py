@@ -12,12 +12,16 @@ if not TELEGRAM_TOKEN or not CHAT_ID:
 bot = Bot(token=TELEGRAM_TOKEN)
 
 def get_tokens():
-    url = "https://api.dexscreener.com/latest/dex/tokens/bsc"  # или другую подходящую цепочку
+    url = "https://api.dexscreener.com/latest/dex/tokens/bsc"  # можно заменить на нужную сеть
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible; PumpBot/1.0)"
+    }
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         data = response.json()
-        return data.get("tokens", []) or data.get("pairs", [])
+        # Вернуть список токенов или пустой список, если данных нет
+        return data.get("tokens") or data.get("pairs") or []
     except Exception as e:
         print(f"Ошибка API: {e}")
         return []
@@ -30,7 +34,7 @@ def is_pump(token):
         vol_ratio = vol_now / vol_prev
         market_cap = float(token.get('fdv') or 0)
         return price_change >= 20 and vol_ratio >= 2 and market_cap <= 10_000_000
-    except:
+    except Exception:
         return False
 
 def format_msg(t):
@@ -53,18 +57,21 @@ def main():
     while True:
         print("🔍 Сканирую токены...")
         tokens = get_tokens()
-        for t in tokens:
-            if is_pump(t):
-                uid = t['pairAddress']
-                if uid not in seen:
-                    msg = format_msg(t)
-                    try:
-                        bot.send_message(chat_id=CHAT_ID, text=msg,
-                                         parse_mode='HTML', disable_web_page_preview=True)
-                        seen.add(uid)
-                        print(f"✅ Отправлено: {t['baseToken']['symbol']}")
-                    except Exception as e:
-                        print(f"❌ Ошибка Telegram: {e}")
+        if not tokens:
+            print("Нет токенов для обработки, жду следующий цикл...")
+        else:
+            for t in tokens:
+                if is_pump(t):
+                    uid = t['pairAddress']
+                    if uid not in seen:
+                        msg = format_msg(t)
+                        try:
+                            bot.send_message(chat_id=CHAT_ID, text=msg,
+                                             parse_mode='HTML', disable_web_page_preview=True)
+                            seen.add(uid)
+                            print(f"✅ Отправлено: {t['baseToken']['symbol']}")
+                        except Exception as e:
+                            print(f"❌ Ошибка Telegram: {e}")
         time.sleep(600)
 
 if __name__ == "__main__":
