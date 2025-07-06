@@ -12,10 +12,12 @@ if not TELEGRAM_TOKEN or not CHAT_ID:
 bot = Bot(token=TELEGRAM_TOKEN)
 
 def get_tokens():
-    url = "https://api.dexscreener.com/latest/dex/pairs"
+    url = "https://api.dexscreener.com/latest/dex/tokens/bsc"  # или другую подходящую цепочку
     try:
-        resp = requests.get(url, timeout=10)
-        return resp.json().get("pairs", [])
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        return data.get("tokens", []) or data.get("pairs", [])
     except Exception as e:
         print(f"Ошибка API: {e}")
         return []
